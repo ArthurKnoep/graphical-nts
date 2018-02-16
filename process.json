@@ -1,0 +1,7 @@
+{
+    "apps": [{
+        "name": "NTS Graph",
+        "script": "./app.ts",
+        "watch": true
+    }]
+}
