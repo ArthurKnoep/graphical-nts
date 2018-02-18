@@ -29,7 +29,7 @@ body {
                 color: white;
                 font-weight: 700;
                 line-height: 3em;
-                cursor: -webkit-grab;
+                cursor: pointer;
                 height: 3em;
                 max-width: 18em;
                 margin: auto;
@@ -50,12 +50,36 @@ body {
     .win {
         height: 100%;
 
-        .title {
+        .title, .toolbar {
             text-align: center;
             font-size: 1.4em;
             height: 50px;
             line-height: 50px;
             border-bottom: @border;
+        }
+
+        .toolbar {
+            text-align: left;
+            display: inline-flex;
+            width: 100%;
+
+            .btn-tool {
+                width: 50px;
+                text-align: center;
+                color: #525252;
+                cursor: pointer;
+                transition: background-color 0.3s, color 0.3s;
+
+                &.selected {
+                    color: white;
+                    background-color: #525252;
+                }
+
+                &:hover:not(.selected) {
+                    background-color: rgb(209, 209, 209);
+                    color: white;
+                }
+            }
         }
     }
 }
