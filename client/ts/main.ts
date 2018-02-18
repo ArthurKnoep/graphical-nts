@@ -24,22 +24,55 @@ const comps = [
     }
 ];
 
-class Toolbar {
-    private dom: JQuery;
-
+class NTS {
+    private stage: Konva.Stage;
+    private comps : Konva.Group[];
+    private bar: JQuery;
+    private compBar: JQuery;
+    
     constructor() {
-        this.dom = $(".toolbar");
+        this.stage = new Konva.Stage({
+            container: 'konva',
+            width: $(".edit-win").width(),
+            height: $(".edit-win").height() - 50
+        });
+        this.bar = $('.toolbar');
+        this.compBar = $('.comp-list .list');
+        this.handleToolbar();
+        this.comps = new Array();
     }
 
-    handleToolbar() {
-        this.dom.find('.btn-tool').click((e) => {
-            this.dom.find('.btn-tool').removeClass('selected');
-            $(e.currentTarget).addClass('selected');
+    setDraggable(state: boolean) {
+        this.comps.forEach((comp) => {
+            comp.setAttr('draggable', state);
         });
     }
 
-    getCurrent() {
-        let btn = this.dom.find('.btn-tool');
+    handleToolbar() {
+        this.bar.find('.btn-tool').click((e) => {
+            this.bar.find('.btn-tool').removeClass('selected');
+            this.compBar.find('.selected').removeClass('selected');
+            $(e.currentTarget).addClass('selected');
+            let newState = this.getToolbarSelected();
+            if (newState == 0) {
+                this.setDraggable(true);
+            } else {
+                this.setDraggable(false);
+            }
+        });
+    }
+
+    handleCompList() {
+        this.compBar.find('.component div').click((e) => {
+            this.bar.find('.btn-tool').removeClass('selected');
+            this.compBar.find('.selected').removeClass('selected');
+            $(e.currentTarget).addClass('selected');
+            this.setDraggable(false);
+        });
+    }
+
+    getToolbarSelected() {
+        let btn = this.bar.find('.btn-tool');
         for (let i = 0; btn[i]; i++) {
             if ($(btn[i]).hasClass('selected')) {
                 return (i);
@@ -49,25 +82,9 @@ class Toolbar {
     }
 
     select(name: string) {
-        this.dom.find('.btn-tool').removeClass('selected');
-        this.dom.find('#' + name).addClass('selected');
+        this.bar.find('.btn-tool').removeClass('selected');
+        this.bar.find('#' + name).addClass('selected');
     }
-}
-
-class NTS {
-    private stage: Konva.Stage;
-    private toolbar: Toolbar;
-
-    constructor() {
-        this.stage = new Konva.Stage({
-            container: 'konva',
-            width: $(".edit-win").width(),
-            height: $(".edit-win").height() - 50
-        });
-        this.toolbar = new Toolbar();
-        this.toolbar.handleToolbar();
-    }
-
 
     createMonoComponent(color: string, x: number, y: number) : Konva.Group {
         let ret = new Konva.Group({
@@ -86,35 +103,41 @@ class NTS {
         return (ret);
     }
 
-    create4PinComp(color: string, x: number, y: number) : Konva.Group {
+    createXPinComp(nbPin: number, color: string, x: number, y: number) : Konva.Group {
         let ret = new Konva.Group({
             x: x,
             y: y,
             draggable: true
         });
 
+        if (nbPin % 2 != 0) {
+            throw "A component must have a pair number of pin";
+        }
+        let len = 50 * (nbPin / 2);
+        
         ret.add(
             new Konva.Rect({
-                width: 130,
+                width: len,
                 height: 60,
                 fill: color,
                 stroke: 'black'
             })
         );
-        for (let j = 0; j < 2; j++)
-            for (let i = 0; i < 2; i++)
+        for (let i = 0; i < 2; i++) {
+            for (let j = 0; j < (nbPin / 2); j++) {
                 ret.add(
                     new Konva.Circle({
-                        x: (i + 1) * 43,
-                        y: j * 60,
+                        x: (j + 1) * (len / ((nbPin / 2) + 1)),
+                        y: i * 60,
                         radius: 10,
                         fill: 'white',
-                        stroke: 'black',
+                        stroke: 'black'
                     })
-                );
+                )
+            }
+        }
         return (ret);
     }
-
 
     initComp() {
         comps.forEach((elem) => {
@@ -122,16 +145,33 @@ class NTS {
                 .append($("<div>").text(elem.name).css("background", elem.color));
             $(".comp-list .list").append(e);
         });
-        this.toolbar.select('mouse');
+        this.select('mouse');
+        this.handleCompList();
 
-        // var layer = new Konva.Layer();
+        var layer = new Konva.Layer();
+        // layer.add(this.createXPinComp(4, 'red', 200, 200));
+        this.comps.push(this.createXPinComp(4, 'red', 200, 200));
+        this.comps.push(this.createXPinComp(8, 'red', 200, 400));
+        // comp8.on('dragstart', (e) => {
+        //     let toolbar = this.toolbar.getCurrent();
+        //     let group: Konva.Group = e.currentTarget;
+        //     if (toolbar != 0) {
+        //         group.setAttr('draggable', false);
+        //     } else {
+        //         group.setAttr('draggable', true);
+        //     }
+        // });
+        // layer.add(comp8);
         // layer.add(this.createMonoComponent('red', 200, 200));
         // layer.add(this.create4PinComp('red', 400, 200));
-        // this.stage.add(layer);
-        // this.stage.draw();
+        layer.add(this.comps[0]);
+        layer.add(this.comps[1]);
+        this.stage.add(layer);
+        this.stage.draw();
     }
 }
 
 let nts = new NTS();
 nts.initComp();
+
 
