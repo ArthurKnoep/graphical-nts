@@ -1,6 +1,19 @@
 /// <reference path="./konva.d.ts" />
 
-const comps = [
+interface SelectToolbar {
+    where: string,
+    idx: number
+};
+
+interface CompPattern {
+    name: string,
+    short_name: string,
+    internal_name: string,
+    nb_pins: number,
+    color: string
+}
+
+const comps : CompPattern[] = [
     {
         name: "Input",
         short_name: "I",
@@ -24,9 +37,18 @@ const comps = [
     }
 ];
 
+function randomStr(len) {
+    var text = "";
+    var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    for (var i = 0; i < len; i++)
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    return text;
+  }
+
 class NTS {
     private stage: Konva.Stage;
-    private comps : Konva.Group[];
+    private layer: Konva.Layer;
+    private comps: Konva.Group[];
     private bar: JQuery;
     private compBar: JQuery;
     
@@ -40,6 +62,8 @@ class NTS {
         this.compBar = $('.comp-list .list');
         this.handleToolbar();
         this.comps = new Array();
+        this.layer = new Konva.Layer();
+        this.stage.add(this.layer);
     }
 
     setDraggable(state: boolean) {
@@ -48,16 +72,32 @@ class NTS {
         });
     }
 
+    compute() {
+        let $compute = $("#compute");
+        let output : string;
+        output = ".components<br>";
+        this.comps.forEach((elem) => {
+            let pattern = elem.getAttr('pattern');
+            console.log(elem.getAttr('pattern'));
+            output += pattern.internal_name + " " + elem.name() + "<br>";
+        });
+        $compute.find(".modal-body").html(output);
+        $('#compute').modal();
+    }
+
     handleToolbar() {
         this.bar.find('.btn-tool').click((e) => {
             this.bar.find('.btn-tool').removeClass('selected');
             this.compBar.find('.selected').removeClass('selected');
             $(e.currentTarget).addClass('selected');
             let newState = this.getToolbarSelected();
-            if (newState == 0) {
+            if (newState.where == 'bar' && newState.idx == 0) {
                 this.setDraggable(true);
             } else {
                 this.setDraggable(false);
+            }
+            if (newState.where == 'bar' && newState.idx == 2) {
+                this.compute();
             }
         });
     }
@@ -68,17 +108,24 @@ class NTS {
             this.compBar.find('.selected').removeClass('selected');
             $(e.currentTarget).addClass('selected');
             this.setDraggable(false);
+            this.getToolbarSelected();
         });
     }
 
-    getToolbarSelected() {
+    getToolbarSelected() : SelectToolbar {
         let btn = this.bar.find('.btn-tool');
         for (let i = 0; btn[i]; i++) {
             if ($(btn[i]).hasClass('selected')) {
-                return (i);
+                return ({ where: 'bar', idx: i });
             }
         }
-        return (-1);
+        let comp = this.compBar.find('.component');
+        for (let i = 0; comp[i]; i++) {
+            if ($(comp[i]).find('div').hasClass('selected')) {
+                return ({ where: 'list', idx: i });
+            }
+        }
+        return ({ where: 'null', idx: -1 });
     }
 
     select(name: string) {
@@ -89,17 +136,26 @@ class NTS {
     createMonoComponent(color: string, x: number, y: number) : Konva.Group {
         let ret = new Konva.Group({
             x: x,
-            y: y
+            y: y,
+            draggable: true,
+            name: randomStr(6)
         });
 
-        ret.add(
-            new Konva.Circle({
-                radius: 10,
-                fill: color,
-                stroke: 'black',
-                draggable: true
-            })
-        );
+        let pin = new Konva.Circle({
+            radius: 10,
+            fill: color,
+            stroke: 'black'
+        });
+        pin.on('mouseover', () => {
+            let tb = this.getToolbarSelected();
+            if (tb.where == 'bar' && tb.idx == 1) {
+                this.stage.container().style.cursor = 'pointer';
+            }
+        });
+        pin.on('mouseout', () => {
+            this.stage.container().style.cursor = '';
+        });
+        ret.add(pin);
         return (ret);
     }
 
@@ -107,7 +163,8 @@ class NTS {
         let ret = new Konva.Group({
             x: x,
             y: y,
-            draggable: true
+            draggable: true,
+            name: randomStr(6)
         });
 
         if (nbPin % 2 != 0) {
@@ -125,18 +182,74 @@ class NTS {
         );
         for (let i = 0; i < 2; i++) {
             for (let j = 0; j < (nbPin / 2); j++) {
-                ret.add(
-                    new Konva.Circle({
-                        x: (j + 1) * (len / ((nbPin / 2) + 1)),
-                        y: i * 60,
-                        radius: 10,
-                        fill: 'white',
-                        stroke: 'black'
-                    })
-                )
+                let pin = new Konva.Circle({
+                    x: (j + 1) * (len / ((nbPin / 2) + 1)),
+                    y: i * 60,
+                    radius: 10,
+                    fill: 'white',
+                    stroke: 'black'
+                });
+                pin.on('mouseover', () => {
+                    let tb = this.getToolbarSelected();
+                    if (tb.where == 'bar' && tb.idx == 1) {
+                        this.stage.container().style.cursor = 'pointer';
+                    }
+                });
+                pin.on('mouseout', () => {
+                    this.stage.container().style.cursor = '';
+                });
+                ret.add(pin);
             }
         }
         return (ret);
+    }
+
+    handleUpdateComp(m_this: NTS) {
+        return (e) => {
+            let comp: Konva.Group = e.currentTarget;
+            let tb = m_this.getToolbarSelected();
+            if (tb.where == 'bar' && tb.idx == 0) {
+                let pattern :CompPattern = comp.getAttr('pattern');
+                console.log('two');
+                $('#type').val(pattern.name);
+                $('#name').val(comp.name()).removeAttr('disabled');
+            }
+        }
+    }
+
+    handleAddComp() {
+        this.stage.on('contentClick', (evt) => {
+            let toolbar = this.getToolbarSelected();
+            if (toolbar.where == 'list') {
+                let compPattern = comps[toolbar.idx];
+                let comp: Konva.Group;
+                let pos = this.stage.getPointerPosition();
+                if (compPattern.nb_pins > 1) {
+                    comp = this.createXPinComp(compPattern.nb_pins, compPattern.color, pos.x, pos.y);
+                } else {
+                    comp = this.createMonoComponent(compPattern.color, pos.x, pos.y);
+                }
+                comp.setAttr('draggable', false);
+                comp.setAttr('pattern', compPattern);
+                comp.on('mouseover', () => {
+                    let tb = this.getToolbarSelected();
+                    if (tb.where == 'bar' && tb.idx == 0) {
+                        this.stage.container().style.cursor = 'pointer';
+                    }
+                });
+                comp.on('mouseout', () => {
+                    this.stage.container().style.cursor = '';
+                });
+                comp.on('click', this.handleUpdateComp(this));
+                this.comps.push(comp);
+                this.layer.add(comp);
+                this.stage.draw();
+            }
+            
+            console.log(evt);
+            console.log(evt.target);
+            // $('#name').val('').attr('disabled');
+        });
     }
 
     initComp() {
@@ -147,31 +260,12 @@ class NTS {
         });
         this.select('mouse');
         this.handleCompList();
-
-        var layer = new Konva.Layer();
-        // layer.add(this.createXPinComp(4, 'red', 200, 200));
-        this.comps.push(this.createXPinComp(4, 'red', 200, 200));
-        this.comps.push(this.createXPinComp(8, 'red', 200, 400));
-        // comp8.on('dragstart', (e) => {
-        //     let toolbar = this.toolbar.getCurrent();
-        //     let group: Konva.Group = e.currentTarget;
-        //     if (toolbar != 0) {
-        //         group.setAttr('draggable', false);
-        //     } else {
-        //         group.setAttr('draggable', true);
-        //     }
-        // });
-        // layer.add(comp8);
-        // layer.add(this.createMonoComponent('red', 200, 200));
-        // layer.add(this.create4PinComp('red', 400, 200));
-        layer.add(this.comps[0]);
-        layer.add(this.comps[1]);
-        this.stage.add(layer);
         this.stage.draw();
     }
 }
 
 let nts = new NTS();
 nts.initComp();
+nts.handleAddComp();
 
 
