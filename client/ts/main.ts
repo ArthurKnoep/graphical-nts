@@ -49,6 +49,7 @@ class NTS {
     private stage: Konva.Stage;
     private layer: Konva.Layer;
     private comps: Konva.Group[];
+    private current: Konva.Group;
     private bar: JQuery;
     private compBar: JQuery;
     
@@ -64,6 +65,7 @@ class NTS {
         this.comps = new Array();
         this.layer = new Konva.Layer();
         this.stage.add(this.layer);
+        this.current = null;
     }
 
     setDraggable(state: boolean) {
@@ -78,7 +80,6 @@ class NTS {
         output = ".components<br>";
         this.comps.forEach((elem) => {
             let pattern = elem.getAttr('pattern');
-            console.log(elem.getAttr('pattern'));
             output += pattern.internal_name + " " + elem.name() + "<br>";
         });
         $compute.find(".modal-body").html(output);
@@ -91,10 +92,12 @@ class NTS {
             this.compBar.find('.selected').removeClass('selected');
             $(e.currentTarget).addClass('selected');
             let newState = this.getToolbarSelected();
+            console.log(newState);
             if (newState.where == 'bar' && newState.idx == 0) {
                 this.setDraggable(true);
             } else {
                 this.setDraggable(false);
+                this.unsetEditWin();
             }
             if (newState.where == 'bar' && newState.idx == 2) {
                 this.compute();
@@ -108,7 +111,7 @@ class NTS {
             this.compBar.find('.selected').removeClass('selected');
             $(e.currentTarget).addClass('selected');
             this.setDraggable(false);
-            this.getToolbarSelected();
+            this.unsetEditWin();
         });
     }
 
@@ -131,6 +134,15 @@ class NTS {
     select(name: string) {
         this.bar.find('.btn-tool').removeClass('selected');
         this.bar.find('#' + name).addClass('selected');
+    }
+
+    unsetEditWin() {
+        $('#name').val('').attr('disabled', 'true');
+        $('#type').val('').attr('disabled', 'true');
+        $('#delete').attr('disabled', 'true');
+        if (this.current) {
+            this.selectComp(this.current, false);
+        }
     }
 
     createMonoComponent(color: string, x: number, y: number) : Konva.Group {
@@ -204,15 +216,41 @@ class NTS {
         return (ret);
     }
 
+    updateComp() {
+        let tb = this.getToolbarSelected();
+        if (tb.where == 'bar' && tb.idx == 0) {
+            $('#name').change(() => {
+                let comps = this.comps;
+                for (let i = 0; comps[i]; i++) {
+                    if (comps[i].name() == $('#name').val().toString()) {
+                        return;
+                    }
+                }
+                this.current.name($('#name').val().toString());
+            });
+        }
+    }
+
+    selectComp(comp: Konva.Group, state: boolean) {
+        let child = comp.getChildren();
+        for (let i = 0; child[i]; i++) {
+            child[i].setAttr('stroke', (state) ? 'gray' : 'black');
+        }
+        this.stage.draw();
+    }
+
     handleUpdateComp(m_this: NTS) {
         return (e) => {
             let comp: Konva.Group = e.currentTarget;
             let tb = m_this.getToolbarSelected();
             if (tb.where == 'bar' && tb.idx == 0) {
                 let pattern :CompPattern = comp.getAttr('pattern');
-                console.log('two');
+                this.comps.forEach((comp) => { this.selectComp(comp, false); });
+                this.selectComp(comp, true);
+                this.current = comp;
                 $('#type').val(pattern.name);
                 $('#name').val(comp.name()).removeAttr('disabled');
+                $('#delete').removeAttr('disabled');
             }
         }
     }
@@ -246,9 +284,29 @@ class NTS {
                 this.stage.draw();
             }
             
-            console.log(evt);
-            console.log(evt.target);
+            // console.log(evt);
+            // console.log(evt.target);
+            // $('#type').val('');
+            // $('#name').val('').removeAttr('disabled');
             // $('#name').val('').attr('disabled');
+        });
+    }
+
+    handleDelComp() {
+        $('#delete').click(() => {
+            let tb = this.getToolbarSelected();
+            if (tb.where == 'bar' && tb.idx == 0) {
+                for (let i = 0; this.comps[i]; i++) {
+                    if (this.current.name() == this.comps[i].name()) {
+                        this.comps[i].remove();
+                        this.stage.draw();
+                        this.comps.splice(i, 1);
+                        this.unsetEditWin();
+                        break;
+                    }
+                }
+                console.log(this.current.name());
+            }
         });
     }
 
@@ -267,5 +325,7 @@ class NTS {
 let nts = new NTS();
 nts.initComp();
 nts.handleAddComp();
+nts.handleDelComp();
+nts.updateComp();
 
 
