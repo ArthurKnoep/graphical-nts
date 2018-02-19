@@ -102,9 +102,6 @@ class NTS {
         this.links.forEach((link) => {
             output += link.start.getParent().name()+':'+(link.start.getAttr('idx') + 1)+' '+
                 link.end.getParent().name()+':'+(link.end.getAttr('idx') + 1)+'<br>';
-            console.log(link.start, link.start.getAttr('idx'), link.start.getParent().name());
-            console.log(link.end, link.end.getAttr('idx'), link.end.getParent().name());
-            // console.log(link.line.getAttr());
         });
         $compute.find(".modal-body").html(output);
         $('#compute').modal();
@@ -116,6 +113,7 @@ class NTS {
             this.compBar.find('.selected').removeClass('selected');
             $(e.currentTarget).addClass('selected');
             let newState = this.getToolbarSelected();
+            this.stage.container().style.cursor = '';
             if (newState.where == 'bar' && newState.idx == 0) {
                 this.setDraggable(true);
             } else {
@@ -135,6 +133,7 @@ class NTS {
             $(e.currentTarget).addClass('selected');
             this.setDraggable(false);
             this.unsetEditWin();
+            this.stage.container().style.cursor = 'crosshair';
         });
     }
 
@@ -168,19 +167,16 @@ class NTS {
         }
     }
 
-    traceLink(m_this: NTS) {
+    traceLink() {
         return (evt) => {
-            // console.log('CLICK PIN');
-            // console.log(m_this.link.state);
             let tb = this.getToolbarSelected();
-            if (tb.where == 'bar' && tb.idx == 1 && m_this.link.state == 0) {
-                m_this.link.start = evt.currentTarget;
-                m_this.link.state = 1;
-            } else if (tb.where == 'bar' && tb.idx == 1 && m_this.link.state == 1) {
-                let start = m_this.link.start.getAbsolutePosition();
+            if (tb.where == 'bar' && tb.idx == 1 && this.link.state == 0) {
+                this.link.start = evt.currentTarget;
+                this.link.state = 1;
+            } else if (tb.where == 'bar' && tb.idx == 1 && this.link.state == 1) {
+                let start = this.link.start.getAbsolutePosition();
                 let end = evt.currentTarget.getAbsolutePosition();
                 let toAppend: LinkTrace = { start: null, end: null, line: null, state: -1 };
-                console.log(start, end);
                 let line = new Konva.Line({
                     points: [start.x, start.y, end.x, end.y],
                     stroke: 'black',
@@ -188,11 +184,46 @@ class NTS {
                 });
                 this.layer.add(line);
                 line.setZIndex(1);
-                toAppend = { start: m_this.link.start, end: evt.currentTarget, line: line, state: 2 };
+                toAppend = { start: this.link.start, end: evt.currentTarget, line: line, state: 2 };
                 this.links.push(toAppend);
-                m_this.link.line.remove();
-                m_this.link = { start: null, end: null, line: null, state: 0 };
+                this.link.line.remove();
+                this.link = { start: null, end: null, line: null, state: 0 };
                 this.stage.draw();
+            }
+        }
+    }
+
+    handleMoveGroup() {
+        return evt => {
+            let t_comp: Konva.Group = evt.currentTarget;
+            let children:Konva.Collection = t_comp.getChildren();
+            for (let i = 0; children[i]; i++) {
+                if (children[i].className == 'Circle') {
+                    for (let j = 0; this.links[j]; j++) {
+                        if (children[i] == this.links[j].start || children[i] == this.links[j].end) {
+                            let posStart;
+                            let posEnd;
+                            this.links[j].line.remove();
+                            if (children[i] == this.links[j].start) {
+                                posStart = children[i].getAbsolutePosition();
+                                posEnd = this.links[j].end.getAbsolutePosition();
+                            }
+                            if (children[i] == this.links[j].end) {
+                                posStart = this.links[j].start.getAbsolutePosition();
+                                posEnd = children[i].getAbsolutePosition();
+                            }
+                            let newLine = new Konva.Line({
+                                points: [posStart.x, posStart.y, posEnd.x, posEnd.y],
+                                stroke: 'black',
+                                strokeWidth: 2
+                            });
+                            this.layer.add(newLine);
+                            newLine.moveToBottom();
+                            this.links[j].line = newLine;
+                            this.stage.draw();
+                        }
+                    }
+                }
             }
         }
     }
@@ -221,7 +252,8 @@ class NTS {
         });
         pin.setAttr('hasComp', 0);
         pin.setAttr('idx', 0);
-        pin.on('click', this.traceLink(this));
+        pin.on('click', this.traceLink());
+        ret.on('dragmove', this.handleMoveGroup());
         ret.add(pin);
         return (ret);
     }
@@ -266,10 +298,11 @@ class NTS {
                 });
                 pin.setAttr('hasComp', 1);
                 pin.setAttr('idx', i * (nbPin / 2) + j);
-                pin.on('click', this.traceLink(this));
+                pin.on('click', this.traceLink());
                 ret.add(pin);
             }
         }
+        ret.on('dragmove', this.handleMoveGroup());
         return (ret);
     }
 
@@ -384,6 +417,17 @@ class NTS {
                 this.link.line.moveToBottom();
                 this.stage.draw();
             }
+
+            //Handle cursor change
+            if (tb.where == 'list') {
+                this.stage.container().style.cursor = 'crosshair';
+            }
+        });
+    }
+
+    handleCloseModal() {
+        $('.modal-footer button[data-dismiss="modal"]').click(() => {
+            this.select('mouse');
         });
     }
 
@@ -405,5 +449,4 @@ nts.handleAddComp();
 nts.handleDelComp();
 nts.updateComp();
 nts.handleTraceLink();
-
-
+nts.handleCloseModal();
