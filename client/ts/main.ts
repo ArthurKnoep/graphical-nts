@@ -13,6 +13,13 @@ interface CompPattern {
     color: string
 }
 
+interface LinkTrace {
+    state: number,
+    start: Konva.Circle,
+    end: Konva.Circle,
+    line: Konva.Line
+}
+
 const comps : CompPattern[] = [
     {
         name: "Input",
@@ -52,6 +59,8 @@ class NTS {
     private current: Konva.Group;
     private bar: JQuery;
     private compBar: JQuery;
+    private link: LinkTrace;
+    private links: LinkTrace[];
     
     constructor() {
         this.stage = new Konva.Stage({
@@ -66,6 +75,13 @@ class NTS {
         this.layer = new Konva.Layer();
         this.stage.add(this.layer);
         this.current = null;
+        this.link = {
+            state: 0,
+            start: null,
+            end: null,
+            line: null
+        };
+        this.links = new Array();
     }
 
     setDraggable(state: boolean) {
@@ -77,10 +93,18 @@ class NTS {
     compute() {
         let $compute = $("#compute");
         let output : string;
-        output = ".components<br>";
+        output = ".chipsets<br>";
         this.comps.forEach((elem) => {
             let pattern = elem.getAttr('pattern');
             output += pattern.internal_name + " " + elem.name() + "<br>";
+        });
+        output += "<br>.links:<br>";
+        this.links.forEach((link) => {
+            output += link.start.getParent().name()+':'+(link.start.getAttr('idx') + 1)+' '+
+                link.end.getParent().name()+':'+(link.end.getAttr('idx') + 1)+'<br>';
+            console.log(link.start, link.start.getAttr('idx'), link.start.getParent().name());
+            console.log(link.end, link.end.getAttr('idx'), link.end.getParent().name());
+            // console.log(link.line.getAttr());
         });
         $compute.find(".modal-body").html(output);
         $('#compute').modal();
@@ -92,7 +116,6 @@ class NTS {
             this.compBar.find('.selected').removeClass('selected');
             $(e.currentTarget).addClass('selected');
             let newState = this.getToolbarSelected();
-            console.log(newState);
             if (newState.where == 'bar' && newState.idx == 0) {
                 this.setDraggable(true);
             } else {
@@ -145,6 +168,35 @@ class NTS {
         }
     }
 
+    traceLink(m_this: NTS) {
+        return (evt) => {
+            // console.log('CLICK PIN');
+            // console.log(m_this.link.state);
+            let tb = this.getToolbarSelected();
+            if (tb.where == 'bar' && tb.idx == 1 && m_this.link.state == 0) {
+                m_this.link.start = evt.currentTarget;
+                m_this.link.state = 1;
+            } else if (tb.where == 'bar' && tb.idx == 1 && m_this.link.state == 1) {
+                let start = m_this.link.start.getAbsolutePosition();
+                let end = evt.currentTarget.getAbsolutePosition();
+                let toAppend: LinkTrace = { start: null, end: null, line: null, state: -1 };
+                console.log(start, end);
+                let line = new Konva.Line({
+                    points: [start.x, start.y, end.x, end.y],
+                    stroke: 'black',
+                    strokeWidth: 2
+                });
+                this.layer.add(line);
+                line.setZIndex(1);
+                toAppend = { start: m_this.link.start, end: evt.currentTarget, line: line, state: 2 };
+                this.links.push(toAppend);
+                m_this.link.line.remove();
+                m_this.link = { start: null, end: null, line: null, state: 0 };
+                this.stage.draw();
+            }
+        }
+    }
+
     createMonoComponent(color: string, x: number, y: number) : Konva.Group {
         let ret = new Konva.Group({
             x: x,
@@ -167,6 +219,9 @@ class NTS {
         pin.on('mouseout', () => {
             this.stage.container().style.cursor = '';
         });
+        pin.setAttr('hasComp', 0);
+        pin.setAttr('idx', 0);
+        pin.on('click', this.traceLink(this));
         ret.add(pin);
         return (ret);
     }
@@ -184,14 +239,13 @@ class NTS {
         }
         let len = 50 * (nbPin / 2);
         
-        ret.add(
-            new Konva.Rect({
-                width: len,
-                height: 60,
-                fill: color,
-                stroke: 'black'
-            })
-        );
+        let rect = new Konva.Rect({
+            width: len,
+            height: 60,
+            fill: color,
+            stroke: 'black'
+        });
+        ret.add(rect);
         for (let i = 0; i < 2; i++) {
             for (let j = 0; j < (nbPin / 2); j++) {
                 let pin = new Konva.Circle({
@@ -210,6 +264,9 @@ class NTS {
                 pin.on('mouseout', () => {
                     this.stage.container().style.cursor = '';
                 });
+                pin.setAttr('hasComp', 1);
+                pin.setAttr('idx', i * (nbPin / 2) + j);
+                pin.on('click', this.traceLink(this));
                 ret.add(pin);
             }
         }
@@ -305,7 +362,27 @@ class NTS {
                         break;
                     }
                 }
-                console.log(this.current.name());
+            }
+        });
+    }
+
+    handleTraceLink() {
+        this.stage.on('contentMousemove', () => {
+            let tb = this.getToolbarSelected();
+            if (tb.where == 'bar' && tb.idx == 1 && this.link.state == 1) {
+                let start = this.link.start.getAbsolutePosition();
+                let end = this.stage.getPointerPosition();
+                if (this.link.line) {
+                    this.link.line.remove();
+                }
+                this.link.line = new Konva.Line({
+                    points: [start.x, start.y, end.x, end.y],
+                    stroke: 'black',
+                    strokeWidth: 2
+                });
+                this.layer.add(this.link.line);
+                this.link.line.moveToBottom();
+                this.stage.draw();
             }
         });
     }
@@ -327,5 +404,6 @@ nts.initComp();
 nts.handleAddComp();
 nts.handleDelComp();
 nts.updateComp();
+nts.handleTraceLink();
 
 
