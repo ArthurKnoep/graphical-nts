@@ -61,7 +61,7 @@ class NTS {
     private compBar: JQuery;
     private link: LinkTrace;
     private links: LinkTrace[];
-    
+
     constructor() {
         this.stage = new Konva.Stage({
             container: 'konva',
@@ -120,6 +120,9 @@ class NTS {
                 this.setDraggable(false);
                 this.unsetEditWin();
             }
+            if (newState.where == 'bar' && newState.idx != 1) {
+                this.endTraceLink();
+            }
             if (newState.where == 'bar' && newState.idx == 2) {
                 this.compute();
             }
@@ -134,6 +137,7 @@ class NTS {
             this.setDraggable(false);
             this.unsetEditWin();
             this.stage.container().style.cursor = 'crosshair';
+            this.endTraceLink();
         });
     }
 
@@ -270,7 +274,7 @@ class NTS {
             throw "A component must have a pair number of pin";
         }
         let len = 50 * (nbPin / 2);
-        
+
         let rect = new Konva.Rect({
             width: len,
             height: 60,
@@ -373,12 +377,6 @@ class NTS {
                 this.layer.add(comp);
                 this.stage.draw();
             }
-            
-            // console.log(evt);
-            // console.log(evt.target);
-            // $('#type').val('');
-            // $('#name').val('').removeAttr('disabled');
-            // $('#name').val('').attr('disabled');
         });
     }
 
@@ -388,6 +386,19 @@ class NTS {
             if (tb.where == 'bar' && tb.idx == 0) {
                 for (let i = 0; this.comps[i]; i++) {
                     if (this.current.name() == this.comps[i].name()) {
+                        let children = this.current.getChildren();
+                        for (let i = 0; children[i]; i++) {
+                            if (children[i].className == 'Circle') {
+                                let links = this.links;
+                                for (let j = 0; links[j]; j++) {
+                                    if (links[j].start == children[i] || links[j].end == children[i]) {
+                                        links[j].line.remove();
+                                        this.links.splice(j, 1);
+                                        j -= 1;
+                                    }
+                                }
+                            }
+                        }
                         this.comps[i].remove();
                         this.stage.draw();
                         this.comps.splice(i, 1);
@@ -428,6 +439,23 @@ class NTS {
     handleCloseModal() {
         $('.modal-footer button[data-dismiss="modal"]').click(() => {
             this.select('mouse');
+            this.setDraggable(true);
+        });
+    }
+
+    endTraceLink() {
+        if (this.link.state != 0) {
+            this.link.line.remove();
+            this.stage.draw();
+        }
+        this.link = { start: null, end: null, line: null, state: 0 };
+    }
+
+    handleEndTraceLink() {
+        document.addEventListener('keydown', (evt) => {
+            if (evt.code == 'Escape') {
+                this.endTraceLink();
+            }
         });
     }
 
@@ -450,3 +478,4 @@ nts.handleDelComp();
 nts.updateComp();
 nts.handleTraceLink();
 nts.handleCloseModal();
+nts.handleEndTraceLink();

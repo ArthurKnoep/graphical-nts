@@ -18,9 +18,19 @@ body {
     .comp-list{
         border-right: @border;
         flex: 0.3;
+        display: flex;
+        flex-direction: column;
+
+        .list {
+            flex-grow: 1;
+            display: flex;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            flex-direction: column;
+        }
 
         .component {
-            margin: 15px 10px;
+            margin: 10px;
             text-align: center;
 
             div {
