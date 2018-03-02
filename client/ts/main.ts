@@ -36,11 +36,102 @@ const comps : CompPattern[] = [
         color: '#00FF00'
     },
     {
-        name: "4008",
+        name: "4001 (NOR)",
+        short_name: "4001",
+        internal_name: "4001",
+        nb_pins: 14,
+        color: '#FFB600'
+    },
+    {
+        name: "4008 (Adder)",
         short_name: "4008",
         internal_name: "4008",
         nb_pins: 16,
-        color: '#FF0000'
+        color: '#FF0033'
+    },
+    {
+        name: "4011 (NAND)",
+        short_name: "4011",
+        internal_name: "4011",
+        nb_pins: 14,
+        color: '#339900'
+    },
+    {
+        name: "4013 (FlipFlop)",
+        short_name: "4013",
+        internal_name: "4013",
+        nb_pins: 14,
+        color: '#FF6600'
+    },
+    {
+        name: "4017 (Johnson decade)",
+        short_name: "4017",
+        internal_name: "4017",
+        nb_pins: 16,
+        color: '#0066CC'
+    },
+    {
+        name: "4030 (XOR)",
+        short_name: "4030",
+        internal_name: "4030",
+        nb_pins: 14,
+        color: '#990000'
+    },
+    {
+        name: "4040 (Counter)",
+        short_name: "4040",
+        internal_name: "4040",
+        nb_pins: 16,
+        color: '#003399'
+    },
+    {
+        name: "4069 (Inverter)",
+        short_name: "4069",
+        internal_name: "4069",
+        nb_pins: 14,
+        color: '#FF9966'
+    },
+    {
+        name: "4071 (OR)",
+        short_name: "4071",
+        internal_name: "4071",
+        nb_pins: 14,
+        color: '#666600'
+    },
+    {
+        name: "4081 (AND)",
+        short_name: "4081",
+        internal_name: "4081",
+        nb_pins: 14,
+        color: '#6699CC'
+    },
+    {
+        name: "4094 (Shift)",
+        short_name: "4094",
+        internal_name: "4094",
+        nb_pins: 16,
+        color: '#339933'
+    },
+    {
+        name: "4514 (Decoder)",
+        short_name: "4514",
+        internal_name: "4514",
+        nb_pins: 24,
+        color: '#006699'
+    },
+    {
+        name: "4801 (RAM)",
+        short_name: "4801",
+        internal_name: "4801",
+        nb_pins: 24,
+        color: '#333300'
+    },
+    {
+        name: "2716 (ROM)",
+        short_name: "2716",
+        internal_name: "2716",
+        nb_pins: 24,
+        color: '#33CC99'
     }
 ];
 
@@ -459,6 +550,16 @@ class NTS {
         });
     }
 
+    handleSave() {
+        $(".save-file").click(() => {
+            let text = $("#compute").find(".modal-body").html();
+            text = text.replace(new RegExp('<br>', 'g'), '\n');
+            let filename = randomStr(8);
+            var blob = new Blob([text], {type: "text/plain;charset=utf-8"});
+            saveAs(blob, filename+".nts");
+        });
+    }
+
     initComp() {
         comps.forEach((elem) => {
             let e = $("<div>").addClass("component")
@@ -479,3 +580,4 @@ nts.updateComp();
 nts.handleTraceLink();
 nts.handleCloseModal();
 nts.handleEndTraceLink();
+nts.handleSave();
